@@ -34,6 +34,7 @@ import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -70,6 +71,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
 
     private TextView mTemperature;
     private Button button;
+    private ImageView visibleTextView;
     private Button info;
     public Set<BluetoothDevice> mBTDevices = new HashSet<BluetoothDevice>();
     private DeviceListAdapter mDeviceListAdapter;
@@ -86,7 +88,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         setProgressBarIndeterminate(true);
 
 
-
+        visibleTextView = findViewById(R.id.visible);
         progressBar = findViewById(R.id.progress_bar);
         lvNewDevices = (ListView) findViewById(R.id.list_item);
         mBTDevices = new HashSet<>();
@@ -107,6 +109,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         BluetoothManager manager = (BluetoothManager) getSystemService(BLUETOOTH_SERVICE);
         mBluetoothAdapter = manager.getAdapter();
         bondes = findViewById(R.id.bondes);
+
         mDevices = new SparseArray<BluetoothDevice>();
         lvNewDevices.setOnItemClickListener(BluetoothActivity.this);
         /*
@@ -119,21 +122,22 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
     }
 
     public void btnDiscover(View view) {
+        visibleTextView.setVisibility(View.GONE);
         Log.d(TAG, "btnDiscover: Looking for unpaired devices.");
 
         if(mBluetoothAdapter.isDiscovering()){
-            button.setText("Scan");
+            button.setText("Cancel");
             mBluetoothAdapter.cancelDiscovery();
             Log.d(TAG, "btnDiscover: Canceling discovery.");
 
 
 
-            mBluetoothAdapter.startDiscovery();
+
             IntentFilter discoverDevicesIntent = new IntentFilter(BluetoothDevice.ACTION_FOUND);
             registerReceiver(mBroadcastReceiver3, discoverDevicesIntent);
         }
         if(!mBluetoothAdapter.isDiscovering()){
-            button.setText("Cancel");
+            button.setText("Scan");
             //check BT permissions in manifest
 
 
@@ -197,13 +201,14 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
 
             }
         });
-
         bondes.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                mBluetoothAdapter.cancelDiscovery();
+                setbondes(v.getContext());
             }
         });
+
 
 
         /*
@@ -233,9 +238,17 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
     }
 
     private void setbondes(Context context) {
-        mDeviceListAdapter = new DeviceListAdapter(context, R.layout.device_adapter_view, null);
+        visibleTextView.setVisibility(View.GONE);
+        if(mDeviceListAdapter != null) {
+            mDeviceListAdapter.clear();
+            mDeviceListAdapter.notifyDataSetChanged();
+        }
+
+
+        Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
+
+        mDeviceListAdapter = new DeviceListAdapter(context, R.layout.device_adapter_view, new ArrayList<BluetoothDevice>(pairedDevices));
         lvNewDevices.setAdapter(mDeviceListAdapter);
-        mDeviceListAdapter = new DeviceListAdapter(context, R.layout.device_adapter_view, null);
     }
 
     @Override
@@ -622,8 +635,8 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
     protected void onDestroy() {
         Log.d(TAG, "onDestroy: called.");
         super.onDestroy();
-        unregisterReceiver(mBroadcastReceiver3);
-        unregisterReceiver(mBroadcastReceiver4);
+//        unregisterReceiver(mBroadcastReceiver3);
+ //       unregisterReceiver(mBroadcastReceiver4);
         //mBluetoothAdapter.cancelDiscovery();
     }
     private void updateHumidityValues(BluetoothGattCharacteristic characteristic) {

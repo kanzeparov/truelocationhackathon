@@ -7,8 +7,10 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:id="@+id/tvDeviceName"/>
+        android:id="@+id/tvDeviceName"
+        android:textColor="#f4f4f4"/>
     <TextView
+        android:textColor="#f4f4f4"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/tvDeviceAddress"/>

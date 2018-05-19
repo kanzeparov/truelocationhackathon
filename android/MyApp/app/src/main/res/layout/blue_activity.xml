@@ -5,19 +5,23 @@
              android:paddingRight="@dimen/activity_horizontal_margin"
              android:paddingTop="@dimen/activity_vertical_margin"
              android:paddingBottom="@dimen/activity_vertical_margin"
+             android:background="@color/colorPrimaryDark"
              android:stretchColumns="*">
 
     <TextView
         android:padding="@dimen/activity_horizontal_margin"
         android:gravity="center_horizontal"
         android:textSize="42sp"
+        android:textColor="#f4f4f4"
         android:text="Scan bluetooth devices"/>
 <TableRow>
     <Button
+        style="@style/Widget.AppCompat.Button.Colored"
         android:text="Scan"
         android:id="@+id/scan"
         />
     <Button
+        style="@style/Widget.AppCompat.Button.Colored"
         android:text="Bondes"
         android:id="@+id/bondes"/>
 </TableRow>
@@ -31,7 +35,12 @@
 
 
 
-
+    <ImageView
+        android:src="@drawable/bluetooth_error"
+        android:id="@+id/visible"
+        android:layout_margin="20dp"
+        android:alpha="1
+"/>
 
 
     <ListView
