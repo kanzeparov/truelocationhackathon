@@ -37,7 +37,7 @@ contract CryptoAnchors {
     
     }
     
-    event States(address UnitId, address user_unit, string status_unit, uint256 latitude_unit, uint256 longitude_unit, uint time_unit);
+    //event States(address UnitId, address user_unit, string status_unit, uint256 latitude_unit, uint256 longitude_unit, uint time_unit);
 
 
     function AddUnit (address _key) public
@@ -50,9 +50,11 @@ contract CryptoAnchors {
     function TypeName() public view returns (string) {
         return name_type;
     }
-    
+
+    /*
     function State(address UnitId) public view returns (address, string, uint256, uint256, uint) {
         return (user_unit[UnitId], status_unit[UnitId], latitude_unit[UnitId], longitude_unit[UnitId], time_unit[UnitId]);
     }
+    */
 
 }
