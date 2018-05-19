@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/action_start"
+          android:title="Stop"
+          android:icon="@drawable/ic_action_assistant_photo" />
+    <item android:id="@+id/action_pay"
+          android:title="Pay"
+          android:icon="@drawable/ic_action_attach_money" />
+    <item android:id="@+id/action_next"
+          android:title="Next"
+          android:icon="@drawable/ic_action_navigate_next" />
+</menu>
