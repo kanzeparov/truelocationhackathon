@@ -9,12 +9,17 @@ import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.os.SystemClock;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -26,18 +31,22 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
-public class BluetoothActivity extends AppCompatActivity implements BluetoothAdapter.LeScanCallback {
+public class BluetoothActivity extends AppCompatActivity implements BluetoothAdapter.LeScanCallback, AdapterView.OnItemClickListener {
     private static final String TAG = "BluetoothGattActivity";
 
     private static final String DEVICE_NAME = "SensorTag";
@@ -62,6 +71,10 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
     private TextView mTemperature;
     private Button button;
     private Button info;
+    public Set<BluetoothDevice> mBTDevices = new HashSet<BluetoothDevice>();
+    private DeviceListAdapter mDeviceListAdapter;
+    ListView lvNewDevices;
+    private Button bondes;
 
     private ProgressDialog mProgress;
 
@@ -74,37 +87,28 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
 
 
 
-
-
+        progressBar = findViewById(R.id.progress_bar);
+        lvNewDevices = (ListView) findViewById(R.id.list_item);
+        mBTDevices = new HashSet<>();
 
         /*
          * We are going to display the results in some text fields
          */
-        button = findViewById(R.id.buttonNext);
-        mTemperature = (TextView) findViewById(R.id.textViewq);
-        info = findViewById(R.id.buttonInfo);
+        button = findViewById(R.id.scan);
+
         /*
          * Bluetooth in Android 4.3 is accessed via the BluetoothManager, rather than
          * the old static BluetoothAdapter.getInstance()
          */
-        info.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(getApplicationContext(), InfoActivity.class);
-                startActivity(intent);
-            }
-        });
+        //Broadcasts when bond state changes (ie:pairing)
+        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
+        registerReceiver(mBroadcastReceiver4, filter);
+
         BluetoothManager manager = (BluetoothManager) getSystemService(BLUETOOTH_SERVICE);
         mBluetoothAdapter = manager.getAdapter();
-        button.setOnClickListener(new View.OnClickListener() {
-                                      @Override
-                                      public void onClick(View v) {
-
-                                      }
-                                  }
-        );
+        bondes = findViewById(R.id.bondes);
         mDevices = new SparseArray<BluetoothDevice>();
-
+        lvNewDevices.setOnItemClickListener(BluetoothActivity.this);
         /*
          * A progress dialog will be needed while the connection process is
          * taking place
@@ -114,9 +118,94 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         mProgress.setCancelable(false);
     }
 
+    public void btnDiscover(View view) {
+        Log.d(TAG, "btnDiscover: Looking for unpaired devices.");
+
+        if(mBluetoothAdapter.isDiscovering()){
+            button.setText("Scan");
+            mBluetoothAdapter.cancelDiscovery();
+            Log.d(TAG, "btnDiscover: Canceling discovery.");
+
+
+
+            mBluetoothAdapter.startDiscovery();
+            IntentFilter discoverDevicesIntent = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+            registerReceiver(mBroadcastReceiver3, discoverDevicesIntent);
+        }
+        if(!mBluetoothAdapter.isDiscovering()){
+            button.setText("Cancel");
+            //check BT permissions in manifest
+
+
+            mBluetoothAdapter.startDiscovery();
+            IntentFilter discoverDevicesIntent = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+            registerReceiver(mBroadcastReceiver3, discoverDevicesIntent);
+        }
+    }
+
+    private final BroadcastReceiver mBroadcastReceiver4 = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+
+            if(action.equals(BluetoothDevice.ACTION_BOND_STATE_CHANGED)){
+                BluetoothDevice mDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                //3 cases:
+                //case1: bonded already
+                if (mDevice.getBondState() == BluetoothDevice.BOND_BONDED){
+                    Log.d(TAG, "BroadcastReceiver: BOND_BONDED.");
+                }
+                //case2: creating a bone
+                if (mDevice.getBondState() == BluetoothDevice.BOND_BONDING) {
+                    Log.d(TAG, "BroadcastReceiver: BOND_BONDING.");
+                }
+                //case3: breaking a bond
+                if (mDevice.getBondState() == BluetoothDevice.BOND_NONE) {
+                    Log.d(TAG, "BroadcastReceiver: BOND_NONE.");
+                }
+            }
+        }
+    };
+
+
+    private BroadcastReceiver mBroadcastReceiver3 = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            Log.d(TAG, "onReceive: ACTION FOUND.");
+
+            if (action.equals(BluetoothDevice.ACTION_FOUND)){
+                BluetoothDevice device = intent.getParcelableExtra (BluetoothDevice.EXTRA_DEVICE);
+                mBTDevices.add(device);
+                Log.d(TAG, "onReceive: " + device.getName() + ": " + device.getAddress());
+                mDeviceListAdapter = new DeviceListAdapter(context, R.layout.device_adapter_view, new ArrayList<BluetoothDevice>(mBTDevices));
+                lvNewDevices.setAdapter(mDeviceListAdapter);
+            }
+        }
+    };
+
+    private ProgressBar progressBar;
+
     @Override
     protected void onResume() {
         super.onResume();
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                btnDiscover(v);
+
+
+            }
+        });
+
+        bondes.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+            }
+        });
+
+
         /*
          * We need to enforce that Bluetooth is first enabled, and take the
          * user to settings to enable it if they have not done so.
@@ -141,6 +230,12 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         }
 
         clearDisplayValues();
+    }
+
+    private void setbondes(Context context) {
+        mDeviceListAdapter = new DeviceListAdapter(context, R.layout.device_adapter_view, null);
+        lvNewDevices.setAdapter(mDeviceListAdapter);
+        mDeviceListAdapter = new DeviceListAdapter(context, R.layout.device_adapter_view, null);
     }
 
     @Override
@@ -177,42 +272,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         return true;
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.action_scan:
-                mDevices.clear();
-                startScan();
 
-                BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-                Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
-
-                String s = "";
-                for (BluetoothDevice bt : pairedDevices) {
-                    s += (bt.getName());
-                }
-                if (s != "") {
-                    mTemperature.setText(s);
-                    button.setVisibility(View.VISIBLE);
-                    button.setText("Next");
-                    info.setVisibility(View.VISIBLE);
-                }
-                s = "";
-                return true;
-            default:
-                //Obtain the discovered device to connect with
-                BluetoothDevice device = mDevices.get(item.getItemId());
-                Log.i(TAG, "Connecting to " + device.getName());
-                /*
-                 * Make a connection with the device using the special LE-specific
-                 * connectGatt() method, passing in a callback for GATT events
-                 */
-                mConnectedGatt = device.connectGatt(this, false, mGattCallback);
-                //Display progress UI
-                mHandler.sendMessage(Message.obtain(null, MSG_PROGRESS, "Connecting to " + device.getName() + "..."));
-                return super.onOptionsItemSelected(item);
-        }
-    }
 
     private void clearDisplayValues() {
 
@@ -537,9 +597,35 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
             }
         }
     };
+    @Override
+    public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+        ArrayList<BluetoothDevice> mDevices = new ArrayList<BluetoothDevice>(mBTDevices);
+        //first cancel discovery because its very memory intensive.
+        mBluetoothAdapter.cancelDiscovery();
 
+        Log.d(TAG, "onItemClick: You Clicked on a device.");
+        String deviceName = mDevices.get(i).getName();
+        String deviceAddress = mDevices.get(i).getAddress();
+
+        Log.d(TAG, "onItemClick: deviceName = " + deviceName);
+        Log.d(TAG, "onItemClick: deviceAddress = " + deviceAddress);
+
+        //create the bond.
+        //NOTE: Requires API 17+? I think this is JellyBean
+        if(Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR2){
+            Log.d(TAG, "Trying to pair with " + deviceName);
+            mDevices.get(i).createBond();
+        }
+    }
     /* Methods to extract sensor data and update the UI */
-
+    @Override
+    protected void onDestroy() {
+        Log.d(TAG, "onDestroy: called.");
+        super.onDestroy();
+        unregisterReceiver(mBroadcastReceiver3);
+        unregisterReceiver(mBroadcastReceiver4);
+        //mBluetoothAdapter.cancelDiscovery();
+    }
     private void updateHumidityValues(BluetoothGattCharacteristic characteristic) {
         double humidity = SensorTagData.extractHumidity(characteristic);
 
