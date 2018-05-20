@@ -1,5 +1,5 @@
 pragma solidity ^0.4.0;
-contract CryptoAnchores {
+contract CryptoAnchors {
     
     address owner;
     address signer;
@@ -19,7 +19,7 @@ contract CryptoAnchores {
     mapping(address => uint) time_unit;  //key => time
     
     
-    function CryptoAnchores (string _name_type) public {
+    function CryptoAnchors (string _name_type) public {
         owner = msg.sender;
         name_type=_name_type;      
     }    
