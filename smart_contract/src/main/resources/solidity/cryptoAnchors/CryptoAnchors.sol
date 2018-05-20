@@ -22,7 +22,7 @@ contract CryptoAnchors {
     function CryptoAnchors (string _name_type) public {
         owner = msg.sender;
         name_type=_name_type;      
-    }    
+    }
     
     function UpdateState (string _status, uint256 _latitude, uint256 _longitude, uint8 v, bytes32 r, bytes32 s, bytes32 signedHash, address UnitId) public
     {
@@ -34,10 +34,12 @@ contract CryptoAnchors {
         latitude_unit[UnitId] = _latitude;
         longitude_unit[UnitId] = _longitude;
         time_unit[UnitId] = now;
-    
+
+        //emit States(UnitId, msg.sender, _status, _latitude, _longitude, now);
     }
     
     //event States(address UnitId, address user_unit, string status_unit, uint256 latitude_unit, uint256 longitude_unit, uint time_unit);
+    //event States(address indexed UnitId);
 
 
     function AddUnit (address _key) public
@@ -51,10 +53,7 @@ contract CryptoAnchors {
         return name_type;
     }
 
-    /*
-    function State(address UnitId) public view returns (address, string, uint256, uint256, uint) {
+    function GetState(address UnitId) public view returns (address, string, uint256, uint256, uint) {
         return (user_unit[UnitId], status_unit[UnitId], latitude_unit[UnitId], longitude_unit[UnitId], time_unit[UnitId]);
     }
-    */
-
 }
