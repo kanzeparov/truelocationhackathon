@@ -23,7 +23,8 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Tablet history"
+        android:text="Drink history"
+        android:textColor="#ffffff"
         android:textSize="30dp"
         android:layout_margin="12dp"/>
     <include layout="@layout/content_main"/>
