@@ -44,6 +44,8 @@ import android.widget.Toast;
 
 import com.example.franck.myapp.contract.CryptoAnchors;
 
+import org.spongycastle.util.encoders.Hex;
+import org.web3j.abi.datatypes.generated.Bytes32;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.WalletUtils;
 import org.web3j.protocol.Web3j;
@@ -107,7 +109,8 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
 
     private ProgressDialog mProgress;
     private String deviceAddress;
-
+    private ProgressBar progressBar;
+    private TextView visibleTextInfo;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -116,7 +119,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         setProgressBarIndeterminate(true);
 
         visibleTextView = findViewById(R.id.visible);
-        progressBar = findViewById(R.id.progress_bar);
+
         lvNewDevices = (ListView) findViewById(R.id.list_item);
         mBTDevices = new HashSet<>();
 
@@ -124,7 +127,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
          * We are going to display the results in some text fields
          */
         button = findViewById(R.id.scan);
-
+        progressBar = findViewById(R.id.progress_bar);
         /*
          * Bluetooth in Android 4.3 is accessed via the BluetoothManager, rather than
          * the old static BluetoothAdapter.getInstance()
@@ -138,7 +141,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         bondes = findViewById(R.id.bondes);
         readPublic = findViewById(R.id.read_public);
         writeSign = findViewById(R.id.write_sign);
-
+        visibleTextInfo = findViewById(R.id.textInvisible);
         mDevices = new SparseArray<BluetoothDevice>();
         lvNewDevices.setOnItemClickListener(BluetoothActivity.this);
         /*
@@ -149,6 +152,11 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         mProgress.setIndeterminate(true);
         mProgress.setCancelable(false);
         scan_bluetooth = findViewById(R.id.scan_device);
+
+        bondes.setClickable(false);
+        writeSign.setClickable(false);
+        readPublic.setClickable(false);
+
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -242,16 +250,23 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         }
     };
 
-    private ProgressBar progressBar;
 
     @Override
     protected void onResume() {
         super.onResume();
 
+        bondes.setClickable(false);
+        writeSign.setClickable(false);
+        readPublic.setClickable(false);
+        bondes.setVisibility(View.GONE);
+        writeSign.setVisibility(View.GONE);
+        readPublic.setVisibility(View.GONE);
         bondes.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                readPublic.setVisibility(View.GONE);
+                writeSign.setVisibility(View.GONE);
+                visibleTextInfo.setVisibility(View.VISIBLE);
                new MyTask().execute();
                 mBluetoothAdapter.cancelDiscovery();
                 setbondes(v.getContext());
@@ -261,16 +276,21 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         readPublic.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(deviceAddress != null)
-                    connectGatt(deviceAddress,  mGattCallback2);
+                mBluetoothAdapter.cancelDiscovery();
+                connectGatt(deviceAddress,  mGattCallback1);
+                    Toast.makeText(getApplicationContext(), "Read public from anchor", Toast.LENGTH_LONG).show();
+
+                }
+
             }
-        });
+        );
 
         writeSign.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(deviceAddress != null)
-                    connectGatt(deviceAddress,  mGattCallback1);
+
+                    Toast.makeText(getApplicationContext(), "Write sign from anchor", Toast.LENGTH_LONG).show();
+
             }
         });
 
@@ -684,7 +704,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
 
         Log.d(TAG, "onItemClick: You Clicked on a device.");
         String deviceName = mDevices.get(i).getName();
-        String deviceAddress = mDevices.get(i).getAddress();
+        deviceAddress = mDevices.get(i).getAddress();
 
         Log.d(TAG, "onItemClick: deviceName = " + deviceName);
         Log.d(TAG, "onItemClick: deviceAddress = " + deviceAddress);
@@ -693,9 +713,15 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         //NOTE: Requires API 17+? I think this is JellyBean
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR2) {
             Log.d(TAG, "Trying to pair with " + deviceName);
-            connectGatt(deviceAddress,  mGattCallback3);
 
+            Toast.makeText(getApplicationContext(), "Click on " + deviceName, Toast.LENGTH_LONG).show();
 
+            bondes.setClickable(true);
+            writeSign.setClickable(true);
+            readPublic.setClickable(true);
+            bondes.setVisibility(View.VISIBLE);
+            writeSign.setVisibility(View.VISIBLE);
+            readPublic.setVisibility(View.VISIBLE);
             //mDevices.get(i).createBond();
 
         }
@@ -729,123 +755,125 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         return mBluetoothGatt.connect();
     }
 
-    private final BluetoothGattCallback mGattCallback3 = new BluetoothGattCallback() {
-        @Override
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                //bluetooth is connected so discover services
-                mBluetoothGatt.discoverServices();
-
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                //Bluetooth is disconnected
-            }
-        }
-
-        @Override
-        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-//                gatt.readCharacteristic(gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0f-0000-1000-8000-00805f9b34fb")));
-//                gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
-
-                BluetoothGattCharacteristic characteristic = gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
-                gatt.setCharacteristicNotification(characteristic,true);
-                characteristic.setValue(new byte[] {1,2,3,5});
-                gatt.writeCharacteristic(characteristic);
-
-            }
-
-
-        }
-
-        @Override
-        public void onCharacteristicRead(BluetoothGatt gatt,
-                BluetoothGattCharacteristic characteristic,
-                int status) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-
-            }
-        }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt,
-                BluetoothGattCharacteristic characteristic) {
-
-            gatt.setCharacteristicNotification(characteristic,true);
-            characteristic.setValue(new byte[] {1,2,3,5});
-            gatt.writeCharacteristic(characteristic);
-        }
-
-        @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            super.onCharacteristicWrite(gatt, characteristic, status);
-
-        }
-    };
-
-    private final BluetoothGattCallback mGattCallback2 = new BluetoothGattCallback() {
-        @Override
-        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
-
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                //bluetooth is connected so discover services
-                mBluetoothGatt.discoverServices();
-
-
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                //Bluetooth is disconnected
-            }
-        }
-
-        @Override
-        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-//                gatt.readCharacteristic(gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0f-0000-1000-8000-00805f9b34fb")));
-//                gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
-
+//    private final BluetoothGattCallback mGattCallback3 = new BluetoothGattCallback() {
+//        @Override
+//        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+//
+//            if (newState == BluetoothProfile.STATE_CONNECTED) {
+//                //bluetooth is connected so discover services
+//                mBluetoothGatt.discoverServices();
+//
+//            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+//                //Bluetooth is disconnected
+//            }
+//        }
+//
+//        @Override
+//        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+//            if (status == BluetoothGatt.GATT_SUCCESS) {
+////                gatt.readCharacteristic(gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0f-0000-1000-8000-00805f9b34fb")));
+////                gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+//
 //                BluetoothGattCharacteristic characteristic = gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
 //                gatt.setCharacteristicNotification(characteristic,true);
 //                characteristic.setValue(new byte[] {1,2,3,5});
 //                gatt.writeCharacteristic(characteristic);
-                BluetoothGattCharacteristic characteristic1 = gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+//
+//            }
+//
+//
+//        }
+//
+//        @Override
+//        public void onCharacteristicRead(BluetoothGatt gatt,
+//                BluetoothGattCharacteristic characteristic,
+//                int status) {
+//            if (status == BluetoothGatt.GATT_SUCCESS) {
+//
+//            }
+//        }
+//
+//        @Override
+//        public void onCharacteristicChanged(BluetoothGatt gatt,
+//                BluetoothGattCharacteristic characteristic) {
+//            byte[] b = new byte[] {1,2,3,5};
+//            gatt.setCharacteristicNotification(characteristic,true);
+//            characteristic.setValue(new byte[] {1,2,3,5});
+//            Toast.makeText(getApplicationContext(), b.toString(), Toast.LENGTH_LONG).show();
+//            gatt.writeCharacteristic(characteristic);
+//        }
+//
+//        @Override
+//        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+//            super.onCharacteristicWrite(gatt, characteristic, status);
+//
+//        }
+//    };
 
-//                onCharacteristicRead(gatt, characteristic2, status);
-//                onCharacteristicRead(gatt, characteristic1, status);
-
-                gatt.readCharacteristic(characteristic1);
-
-
-            }
-
-
-        }
-
-        @Override
-        public void onCharacteristicRead(BluetoothGatt gatt,
-                BluetoothGattCharacteristic characteristic,
-                int status) {
-            if (status == BluetoothGatt.GATT_SUCCESS) {
-                final byte[] dataInput1 = characteristic.getValue();
-//                final byte[] dataInput = characteristic.getValue();
-
-            }
-        }
-
-        @Override
-        public void onCharacteristicChanged(BluetoothGatt gatt,
-                BluetoothGattCharacteristic characteristic) {
-
-            gatt.setCharacteristicNotification(characteristic,true);
-            characteristic.setValue(new byte[] {1,2,3,5});
-            gatt.writeCharacteristic(characteristic);
-        }
-
-        @Override
-        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            super.onCharacteristicWrite(gatt, characteristic, status);
-
-        }
-    };
+//    private final BluetoothGattCallback mGattCallback2 = new BluetoothGattCallback() {
+//        @Override
+//        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+//
+//            if (newState == BluetoothProfile.STATE_CONNECTED) {
+//                //bluetooth is connected so discover services
+//                mBluetoothGatt.discoverServices();
+//
+//
+//            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+//                //Bluetooth is disconnected
+//            }
+//        }
+//
+//        @Override
+//        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+//            if (status == BluetoothGatt.GATT_SUCCESS) {
+////                gatt.readCharacteristic(gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0f-0000-1000-8000-00805f9b34fb")));
+////                gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+//
+////                BluetoothGattCharacteristic characteristic = gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+////                gatt.setCharacteristicNotification(characteristic,true);
+////                characteristic.setValue(new byte[] {1,2,3,5});
+////                gatt.writeCharacteristic(characteristic);
+//                BluetoothGattCharacteristic characteristic1 = gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+//
+////                onCharacteristicRead(gatt, characteristic2, status);
+////                onCharacteristicRead(gatt, characteristic1, status);
+//
+//                gatt.readCharacteristic(characteristic1);
+//
+//
+//            }
+//
+//
+//        }
+//
+//        @Override
+//        public void onCharacteristicRead(BluetoothGatt gatt,
+//                BluetoothGattCharacteristic characteristic,
+//                int status) {
+//            if (status == BluetoothGatt.GATT_SUCCESS) {
+//                final byte[] dataInput1 = characteristic.getValue();
+//                Toast.makeText(getApplicationContext(), dataInput1.toString(), Toast.LENGTH_LONG).show();
+////                final byte[] dataInput = characteristic.getValue();
+//
+//            }
+//        }
+//
+//        @Override
+//        public void onCharacteristicChanged(BluetoothGatt gatt,
+//                BluetoothGattCharacteristic characteristic) {
+//
+//            gatt.setCharacteristicNotification(characteristic,true);
+//            characteristic.setValue(new byte[] {1,2,3,5});
+//            gatt.writeCharacteristic(characteristic);
+//        }
+//
+//        @Override
+//        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+//            super.onCharacteristicWrite(gatt, characteristic, status);
+//
+//        }
+//    };
 
     private final BluetoothGattCallback mGattCallback1 = new BluetoothGattCallback() {
         @Override
@@ -854,7 +882,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 //bluetooth is connected so discover services
                 mBluetoothGatt.discoverServices();
-
+                onServicesDiscovered(gatt, status);
 
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 //Bluetooth is disconnected
@@ -878,6 +906,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
 
 
                 gatt.readCharacteristic(characteristic2);
+                onCharacteristicRead(gatt, characteristic2, status);
 
             }
 
@@ -890,6 +919,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
                 int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 final byte[] dataInput1 = characteristic.getValue();
+                Toast.makeText(getApplicationContext(), dataInput1.toString(), Toast.LENGTH_LONG).show();
 //                final byte[] dataInput = characteristic.getValue();
             }
         }
@@ -940,10 +970,29 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         mTemperature.setText(String.format("%.1f\u00B0C", temp));
     }
 
+    public static Bytes32 stringToBytes32(String string) {
+        byte[] byteValue = string.getBytes();
+        byte[] byteValueLen32 = new byte[32];
+        System.arraycopy(byteValue, 0, byteValueLen32, 0, byteValue.length);
+        return new Bytes32(byteValueLen32);
+    }
+    public static byte[] StringHexToByteArray(String x) throws Exception {
+        if (x.startsWith("0x")) {
+            x = x.substring(2);
+        }
+        if (x.length() % 2 != 0) x = "0" + x;
+        return Hex.decode(x);
+    }
+    private void updateState() throws Exception
+    {
+        }
+
     public static String jsonUTC =
             "{\"address\":\"59ea0893ca2abe7bae02a5c2a8d564c5a2146ae2\",\"id\":\"65af76b4-3d1a-4abe-954d-7c6f9a3a68e8\",\"version\":3,\"crypto\":{\"cipher\":\"aes-128-ctr\",\"ciphertext\":\"0029f1a85a9475e5037939628876a65bb8081eabe8b7356d4714b290b991840d\",\"cipherparams\":{\"iv\":\"d80368a31abda00525dfea21d22f4460\"},\"kdf\":\"scrypt\",\"kdfparams\":{\"dklen\":32,\"n\":262144,\"p\":1,\"r\":8,\"salt\":\"9c9b94800e9c09d255e309048a7204c319318cf8f829786ea55988ee145889ee\"},\"mac\":\"ff237552eeb625c008f131824fd39b6f207ec90fd1aa541f824e799dceebc8c7\"}}\n";
     public static String jsonClient =
             "{\"address\":\"09a5dacb427cc8fd596e5b1640fa539dac1a5d6d\",\"id\":\"0f633608-267f-4e94-b4ef-4f4ba635ef89\",\"version\":3,\"crypto\":{\"cipher\":\"aes-128-ctr\",\"ciphertext\":\"4fc75a27ac790c3308f11c02a356e46cfab8796c866812a5dea9c368c19f6b56\",\"cipherparams\":{\"iv\":\"137a3d2c8c934f1afd108bea643a9ce7\"},\"kdf\":\"scrypt\",\"kdfparams\":{\"dklen\":32,\"n\":262144,\"p\":1,\"r\":8,\"salt\":\"e07cbff898dfc8db886058435d6409d32c11c247b3a9d7544ccb85894ed370e0\"},\"mac\":\"94c0986542d05b14aa481a46752d59c77ebf8443103678c44e2aa8899c326ccb\"}}";
+
+
 
     class MyTask extends AsyncTask<String, Void, Void> {
 
@@ -953,6 +1002,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
             super.onPreExecute();
 
             Log.d("ETHR", "ok pre exec");
+            progressBar.setVisibility(View.VISIBLE);
         }
 
         @Override
@@ -973,6 +1023,28 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
                     name = contract1.TypeName().send();
 
                     Log.d("dw", contract1.TypeName().send());
+
+
+                    BigInteger _latitude = new BigInteger("123");
+                    BigInteger _longitude = new BigInteger("123");
+                    BigInteger _v = new BigInteger("1c", 16);
+                    byte[] _r = StringHexToByteArray("0xf444a383acba466a2aed2582895c614323bb97aa6b74e04f97922b176bc1aa2c");
+                    byte[] _s = StringHexToByteArray("0x4f23d377cb19cc04f408a2ea4fb219d69e3bcb0a5585d06561a34712185a0e77");
+                    byte[] _signedHash = StringHexToByteArray("0x8dfe9be33ccb1c830e048219729e8c01f54c768004d8dc035105629515feb38e");
+
+
+                    CryptoAnchors contract = CryptoAnchors.load(
+                            "0x4296b2dc215cb8e29c8fc81234dd0103f3af6e25",
+                            web3j, credentials1,
+                            ManagedTransaction.GAS_PRICE, Contract.GAS_LIMIT
+                    );
+
+                    contract.UpdateState("asdf", _latitude, _longitude, _v, _r, _s, _signedHash, "0xf6f45356002Eee48a0333c480da441dAdFcE1373").send();
+
+
+
+
+
                 } catch (Exception e){e.printStackTrace();}
             } catch (Exception e) {
                 e.printStackTrace();
@@ -981,10 +1053,13 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
             return null;
         }
 
+
+
         @Override
         protected void onPostExecute(Void result) {
             super.onPostExecute(result);
-            scan_bluetooth.setText(name);
+            progressBar.setVisibility(View.GONE);
+            scan_bluetooth.setText("Product: " + name);
 //        Log.d("ETHR", contractAdmin.getContractAddress());
             Log.d("ETHR", "ok post Exec");
         }

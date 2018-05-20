@@ -22,11 +22,11 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayoutManager mLayoutManager;
     private MyAdapter mAdapter;
 
-    private String[] myDataset = new String[] {"Vodka", "Pivo", "Samogon", "Klinskoe", "Cola", "Dr.peper",
-            "Vodka", "Pivo", "Samogon", "Klinskoe", "Cola", "Dr.peper"};
-    private String[] description = new String[] {"Russian drink", "Traditional poilo",
-            "Babushkin лексир", "Вкусняшка", "Не очень вкусное", "Американщина","Russian drink", "Traditional poilo",
-            "Babushkin лексир", "Вкусняшка", "Не очень вкусное", "Американщина"};
+    private String[] myDataset = new String[] {"Martini", "Bordo", "Lamanshan", "Antonio", "Loshonio", "Pechorkio",
+            "Martini", "Bordo", "Lamanshan", "Antonio", "Loshonio", "Pechorkio"};
+    private String[] description = new String[] {"Very taste and delitious", "Smart vino",
+            "Very tasty", "Old and tasty", "Very taste and delitious", "Smart vino","Very taste and delitious", "Smart vino",
+            "Very tasty", "Old and tasty", "Very taste and delitious", "Smart vino"};
     private List<Integer> imageViews = new ArrayList<Integer>();
     @Override
     protected void onCreate(Bundle savedInstanceState) {

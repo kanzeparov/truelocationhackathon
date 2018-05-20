@@ -14,39 +14,48 @@
         android:textSize="42sp"
         android:id="@+id/scan_device"
         android:textColor="#f4f4f4"
-        android:text="Scan bluetooth devices"/>
-<TableRow>
+        android:text="Scan all anchors"/>
+
     <Button
         style="@style/Widget.AppCompat.Button.Colored"
         android:text="Scan"
+        android:gravity="center"
+        android:layout_width="match_parent"
         android:id="@+id/scan"
         />
+
+
     <Button
         style="@style/Widget.AppCompat.Button.Colored"
-        android:text="Bondes"
+        android:text="Info and anchor history"
         android:id="@+id/bondes"/>
-</TableRow>
+
     <TableRow>
         <Button
             style="@style/Widget.AppCompat.Button.Colored"
-            android:text="Read public"
+            android:text="Check anchor"
             android:id="@+id/read_public"
             />
         <Button
             style="@style/Widget.AppCompat.Button.Colored"
-            android:text="Write sign"
+            android:text="Sign anchor"
             android:id="@+id/write_sign"/>
     </TableRow>
+
+
+
+
+    <TextView
+        android:id="@+id/textInvisible"
+        android:text="Info: "
+        android:textColor="#ffffff"
+        android:layout_margin="12dp"
+        android:visibility="gone"
+        android:textSize="30dp"/>
     <ProgressBar
         android:id="@+id/progress_bar"
         android:visibility="gone"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
-
-
-
-
+        />
     <ImageView
         android:src="@drawable/bluetooth_error"
         android:id="@+id/visible"
