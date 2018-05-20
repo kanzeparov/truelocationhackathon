@@ -1003,6 +1003,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
 
             Log.d("ETHR", "ok pre exec");
             progressBar.setVisibility(View.VISIBLE);
+            visibleTextInfo.setVisibility(View.GONE);
         }
 
         @Override
@@ -1059,6 +1060,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         protected void onPostExecute(Void result) {
             super.onPostExecute(result);
             progressBar.setVisibility(View.GONE);
+            visibleTextInfo.setVisibility(View.VISIBLE);
             scan_bluetooth.setText("Product: " + name);
 //        Log.d("ETHR", contractAdmin.getContractAddress());
             Log.d("ETHR", "ok post Exec");
