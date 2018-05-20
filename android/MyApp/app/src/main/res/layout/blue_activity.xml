@@ -12,6 +12,7 @@
         android:padding="@dimen/activity_horizontal_margin"
         android:gravity="center_horizontal"
         android:textSize="42sp"
+        android:id="@+id/scan_device"
         android:textColor="#f4f4f4"
         android:text="Scan bluetooth devices"/>
 <TableRow>
@@ -25,6 +26,17 @@
         android:text="Bondes"
         android:id="@+id/bondes"/>
 </TableRow>
+    <TableRow>
+        <Button
+            style="@style/Widget.AppCompat.Button.Colored"
+            android:text="Read public"
+            android:id="@+id/read_public"
+            />
+        <Button
+            style="@style/Widget.AppCompat.Button.Colored"
+            android:text="Write sign"
+            android:id="@+id/write_sign"/>
+    </TableRow>
     <ProgressBar
         android:id="@+id/progress_bar"
         android:visibility="gone"

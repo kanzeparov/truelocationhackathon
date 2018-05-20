@@ -15,8 +15,10 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
@@ -40,9 +42,29 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.franck.myapp.contract.CryptoAnchors;
+
+import org.web3j.crypto.Credentials;
+import org.web3j.crypto.WalletUtils;
+import org.web3j.protocol.Web3j;
+import org.web3j.protocol.Web3jFactory;
+import org.web3j.protocol.core.methods.response.TransactionReceipt;
+import org.web3j.protocol.http.HttpService;
+
+import org.web3j.protocol.Web3j;
+import org.web3j.protocol.http.HttpService;
+import org.web3j.tx.Contract;
+import org.web3j.tx.ManagedTransaction;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
@@ -51,7 +73,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
     private static final String TAG = "BluetoothGattActivity";
 
     private static final String DEVICE_NAME = "SensorTag";
-
+    private BluetoothGatt mBluetoothGatt;
     /* Humidity Service */
     private static final UUID HUMIDITY_SERVICE = UUID.fromString("f000aa20-0451-4000-b000-000000000000");
     private static final UUID HUMIDITY_DATA_CHAR = UUID.fromString("f000aa21-0451-4000-b000-000000000000");
@@ -77,8 +99,14 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
     private DeviceListAdapter mDeviceListAdapter;
     ListView lvNewDevices;
     private Button bondes;
+    private Button writeSign;
+    private Button readPublic;
+    String path;
+    private TextView scan_bluetooth;
+
 
     private ProgressDialog mProgress;
+    private String deviceAddress;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,7 +114,6 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         setContentView(R.layout.blue_activity);
         setProgressBarIndeterminate(true);
-
 
         visibleTextView = findViewById(R.id.visible);
         progressBar = findViewById(R.id.progress_bar);
@@ -109,6 +136,8 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         BluetoothManager manager = (BluetoothManager) getSystemService(BLUETOOTH_SERVICE);
         mBluetoothAdapter = manager.getAdapter();
         bondes = findViewById(R.id.bondes);
+        readPublic = findViewById(R.id.read_public);
+        writeSign = findViewById(R.id.write_sign);
 
         mDevices = new SparseArray<BluetoothDevice>();
         lvNewDevices.setOnItemClickListener(BluetoothActivity.this);
@@ -119,27 +148,53 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         mProgress = new ProgressDialog(this);
         mProgress.setIndeterminate(true);
         mProgress.setCancelable(false);
+        scan_bluetooth = findViewById(R.id.scan_device);
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //new MyTask().execute();
+
+                try {
+
+                    String filename;
+
+                    filename = "UTC--2018-04-21T17-43-12_948279000Z--59ea0893ca2abe7bae02a5c2a8d564c5a2146ae2";
+                    String string = jsonUTC;
+
+                    File f = new File(getApplicationContext().getFilesDir(), filename);
+                    FileOutputStream fos = openFileOutput(filename, Context.MODE_PRIVATE);
+                    fos.write(string.getBytes());
+                    fos.flush();
+                    fos.close();
+                    Log.d("ETHR", "jsonUTC");
+                    path = f.getAbsolutePath();
+
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                btnDiscover(v);
+
+            }
+        });
     }
 
     public void btnDiscover(View view) {
         visibleTextView.setVisibility(View.GONE);
         Log.d(TAG, "btnDiscover: Looking for unpaired devices.");
 
-        if(mBluetoothAdapter.isDiscovering()){
+        if (mBluetoothAdapter.isDiscovering()) {
             button.setText("Cancel");
             mBluetoothAdapter.cancelDiscovery();
             Log.d(TAG, "btnDiscover: Canceling discovery.");
 
-
-
-
             IntentFilter discoverDevicesIntent = new IntentFilter(BluetoothDevice.ACTION_FOUND);
             registerReceiver(mBroadcastReceiver3, discoverDevicesIntent);
         }
-        if(!mBluetoothAdapter.isDiscovering()){
+        if (!mBluetoothAdapter.isDiscovering()) {
             button.setText("Scan");
             //check BT permissions in manifest
-
 
             mBluetoothAdapter.startDiscovery();
             IntentFilter discoverDevicesIntent = new IntentFilter(BluetoothDevice.ACTION_FOUND);
@@ -152,11 +207,11 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
 
-            if(action.equals(BluetoothDevice.ACTION_BOND_STATE_CHANGED)){
+            if (action.equals(BluetoothDevice.ACTION_BOND_STATE_CHANGED)) {
                 BluetoothDevice mDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 //3 cases:
                 //case1: bonded already
-                if (mDevice.getBondState() == BluetoothDevice.BOND_BONDED){
+                if (mDevice.getBondState() == BluetoothDevice.BOND_BONDED) {
                     Log.d(TAG, "BroadcastReceiver: BOND_BONDED.");
                 }
                 //case2: creating a bone
@@ -171,15 +226,14 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         }
     };
 
-
     private BroadcastReceiver mBroadcastReceiver3 = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
             Log.d(TAG, "onReceive: ACTION FOUND.");
 
-            if (action.equals(BluetoothDevice.ACTION_FOUND)){
-                BluetoothDevice device = intent.getParcelableExtra (BluetoothDevice.EXTRA_DEVICE);
+            if (action.equals(BluetoothDevice.ACTION_FOUND)) {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                 mBTDevices.add(device);
                 Log.d(TAG, "onReceive: " + device.getName() + ": " + device.getAddress());
                 mDeviceListAdapter = new DeviceListAdapter(context, R.layout.device_adapter_view, new ArrayList<BluetoothDevice>(mBTDevices));
@@ -193,22 +247,32 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
     @Override
     protected void onResume() {
         super.onResume();
-        button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                btnDiscover(v);
 
-
-            }
-        });
         bondes.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+
+               new MyTask().execute();
                 mBluetoothAdapter.cancelDiscovery();
                 setbondes(v.getContext());
             }
         });
 
+        readPublic.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(deviceAddress != null)
+                    connectGatt(deviceAddress,  mGattCallback2);
+            }
+        });
+
+        writeSign.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if(deviceAddress != null)
+                    connectGatt(deviceAddress,  mGattCallback1);
+            }
+        });
 
 
         /*
@@ -239,11 +303,10 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
 
     private void setbondes(Context context) {
         visibleTextView.setVisibility(View.GONE);
-        if(mDeviceListAdapter != null) {
+        if (mDeviceListAdapter != null) {
             mDeviceListAdapter.clear();
             mDeviceListAdapter.notifyDataSetChanged();
         }
-
 
         Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
 
@@ -259,7 +322,7 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         //Cancel any scans in progress
         mHandler.removeCallbacks(mStopRunnable);
         mHandler.removeCallbacks(mStartRunnable);
-        mBluetoothAdapter.stopLeScan(this);
+//        mBluetoothAdapter.stopLeScan(this);
     }
 
     @Override
@@ -284,8 +347,6 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
 
         return true;
     }
-
-
 
     private void clearDisplayValues() {
 
@@ -610,6 +671,11 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
             }
         }
     };
+
+    private String name;
+
+
+
     @Override
     public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
         ArrayList<BluetoothDevice> mDevices = new ArrayList<BluetoothDevice>(mBTDevices);
@@ -625,20 +691,236 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
 
         //create the bond.
         //NOTE: Requires API 17+? I think this is JellyBean
-        if(Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR2){
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN_MR2) {
             Log.d(TAG, "Trying to pair with " + deviceName);
-            mDevices.get(i).createBond();
+            connectGatt(deviceAddress,  mGattCallback3);
+
+
+            //mDevices.get(i).createBond();
+
         }
     }
+
+
+    private boolean connectGatt(final String address, BluetoothGattCallback mGattCallback) {
+        if (mBluetoothAdapter == null || address == null) {
+            Log.w(TAG, "BluetoothAdapter not initialized or unspecified address.");
+            return false;
+        }
+
+        if (mBluetoothGatt != null) {
+            Log.d(TAG, "Trying to use an existing mBluetoothGatt for connection.");
+            if (mBluetoothGatt.connect()) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        final BluetoothDevice device = mBluetoothAdapter
+                .getRemoteDevice(address);
+        if (device == null) {
+            Log.w(TAG, "Device not found.  Unable to connect.");
+            return false;
+        }
+
+        mBluetoothGatt = device.connectGatt(getApplicationContext(), true, mGattCallback);
+        Log.d(TAG, "Trying to create a new connection.");
+        return mBluetoothGatt.connect();
+    }
+
+    private final BluetoothGattCallback mGattCallback3 = new BluetoothGattCallback() {
+        @Override
+        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                //bluetooth is connected so discover services
+                mBluetoothGatt.discoverServices();
+
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                //Bluetooth is disconnected
+            }
+        }
+
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+//                gatt.readCharacteristic(gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0f-0000-1000-8000-00805f9b34fb")));
+//                gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+
+                BluetoothGattCharacteristic characteristic = gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+                gatt.setCharacteristicNotification(characteristic,true);
+                characteristic.setValue(new byte[] {1,2,3,5});
+                gatt.writeCharacteristic(characteristic);
+
+            }
+
+
+        }
+
+        @Override
+        public void onCharacteristicRead(BluetoothGatt gatt,
+                BluetoothGattCharacteristic characteristic,
+                int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+
+            }
+        }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt,
+                BluetoothGattCharacteristic characteristic) {
+
+            gatt.setCharacteristicNotification(characteristic,true);
+            characteristic.setValue(new byte[] {1,2,3,5});
+            gatt.writeCharacteristic(characteristic);
+        }
+
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicWrite(gatt, characteristic, status);
+
+        }
+    };
+
+    private final BluetoothGattCallback mGattCallback2 = new BluetoothGattCallback() {
+        @Override
+        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                //bluetooth is connected so discover services
+                mBluetoothGatt.discoverServices();
+
+
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                //Bluetooth is disconnected
+            }
+        }
+
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+//                gatt.readCharacteristic(gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0f-0000-1000-8000-00805f9b34fb")));
+//                gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+
+//                BluetoothGattCharacteristic characteristic = gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+//                gatt.setCharacteristicNotification(characteristic,true);
+//                characteristic.setValue(new byte[] {1,2,3,5});
+//                gatt.writeCharacteristic(characteristic);
+                BluetoothGattCharacteristic characteristic1 = gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+
+//                onCharacteristicRead(gatt, characteristic2, status);
+//                onCharacteristicRead(gatt, characteristic1, status);
+
+                gatt.readCharacteristic(characteristic1);
+
+
+            }
+
+
+        }
+
+        @Override
+        public void onCharacteristicRead(BluetoothGatt gatt,
+                BluetoothGattCharacteristic characteristic,
+                int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                final byte[] dataInput1 = characteristic.getValue();
+//                final byte[] dataInput = characteristic.getValue();
+
+            }
+        }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt,
+                BluetoothGattCharacteristic characteristic) {
+
+            gatt.setCharacteristicNotification(characteristic,true);
+            characteristic.setValue(new byte[] {1,2,3,5});
+            gatt.writeCharacteristic(characteristic);
+        }
+
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicWrite(gatt, characteristic, status);
+
+        }
+    };
+
+    private final BluetoothGattCallback mGattCallback1 = new BluetoothGattCallback() {
+        @Override
+        public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+
+            if (newState == BluetoothProfile.STATE_CONNECTED) {
+                //bluetooth is connected so discover services
+                mBluetoothGatt.discoverServices();
+
+
+            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                //Bluetooth is disconnected
+            }
+        }
+
+        @Override
+        public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+//                gatt.readCharacteristic(gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0f-0000-1000-8000-00805f9b34fb")));
+//                gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+
+//                BluetoothGattCharacteristic characteristic = gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0e-0000-1000-8000-00805f9b34fb"));
+//                gatt.setCharacteristicNotification(characteristic,true);
+//                characteristic.setValue(new byte[] {1,2,3,5});
+//                gatt.writeCharacteristic(characteristic);
+
+                BluetoothGattCharacteristic characteristic2 = gatt.getService(UUID.fromString("0000ec00-0000-1000-8000-00805f9b34fb")).getCharacteristic(UUID.fromString("0000ec0f-0000-1000-8000-00805f9b34fb"));
+//                onCharacteristicRead(gatt, characteristic2, status);
+//                onCharacteristicRead(gatt, characteristic1, status);
+
+
+                gatt.readCharacteristic(characteristic2);
+
+            }
+
+
+        }
+
+        @Override
+        public void onCharacteristicRead(BluetoothGatt gatt,
+                BluetoothGattCharacteristic characteristic,
+                int status) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                final byte[] dataInput1 = characteristic.getValue();
+//                final byte[] dataInput = characteristic.getValue();
+            }
+        }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt gatt,
+                BluetoothGattCharacteristic characteristic) {
+
+            gatt.setCharacteristicNotification(characteristic,true);
+            characteristic.setValue(new byte[] {1,2,3,5});
+            gatt.writeCharacteristic(characteristic);
+        }
+
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            super.onCharacteristicWrite(gatt, characteristic, status);
+
+        }
+    };
     /* Methods to extract sensor data and update the UI */
     @Override
     protected void onDestroy() {
         Log.d(TAG, "onDestroy: called.");
         super.onDestroy();
-//        unregisterReceiver(mBroadcastReceiver3);
- //       unregisterReceiver(mBroadcastReceiver4);
-        //mBluetoothAdapter.cancelDiscovery();
+        if(mBroadcastReceiver3 != null && mBroadcastReceiver4 != null) {
+            unregisterReceiver(mBroadcastReceiver3);
+            unregisterReceiver(mBroadcastReceiver4);
+            mBluetoothAdapter.cancelDiscovery();
+        }
     }
+
     private void updateHumidityValues(BluetoothGattCharacteristic characteristic) {
         double humidity = SensorTagData.extractHumidity(characteristic);
 
@@ -656,5 +938,122 @@ public class BluetoothActivity extends AppCompatActivity implements BluetoothAda
         double temp = SensorTagData.extractBarTemperature(characteristic, mPressureCals);
 
         mTemperature.setText(String.format("%.1f\u00B0C", temp));
+    }
+
+    public static String jsonUTC =
+            "{\"address\":\"59ea0893ca2abe7bae02a5c2a8d564c5a2146ae2\",\"id\":\"65af76b4-3d1a-4abe-954d-7c6f9a3a68e8\",\"version\":3,\"crypto\":{\"cipher\":\"aes-128-ctr\",\"ciphertext\":\"0029f1a85a9475e5037939628876a65bb8081eabe8b7356d4714b290b991840d\",\"cipherparams\":{\"iv\":\"d80368a31abda00525dfea21d22f4460\"},\"kdf\":\"scrypt\",\"kdfparams\":{\"dklen\":32,\"n\":262144,\"p\":1,\"r\":8,\"salt\":\"9c9b94800e9c09d255e309048a7204c319318cf8f829786ea55988ee145889ee\"},\"mac\":\"ff237552eeb625c008f131824fd39b6f207ec90fd1aa541f824e799dceebc8c7\"}}\n";
+    public static String jsonClient =
+            "{\"address\":\"09a5dacb427cc8fd596e5b1640fa539dac1a5d6d\",\"id\":\"0f633608-267f-4e94-b4ef-4f4ba635ef89\",\"version\":3,\"crypto\":{\"cipher\":\"aes-128-ctr\",\"ciphertext\":\"4fc75a27ac790c3308f11c02a356e46cfab8796c866812a5dea9c368c19f6b56\",\"cipherparams\":{\"iv\":\"137a3d2c8c934f1afd108bea643a9ce7\"},\"kdf\":\"scrypt\",\"kdfparams\":{\"dklen\":32,\"n\":262144,\"p\":1,\"r\":8,\"salt\":\"e07cbff898dfc8db886058435d6409d32c11c247b3a9d7544ccb85894ed370e0\"},\"mac\":\"94c0986542d05b14aa481a46752d59c77ebf8443103678c44e2aa8899c326ccb\"}}";
+
+    class MyTask extends AsyncTask<String, Void, Void> {
+
+        @Override
+        protected void onPreExecute() {
+
+            super.onPreExecute();
+
+            Log.d("ETHR", "ok pre exec");
+        }
+
+        @Override
+        protected Void doInBackground(String... params) {
+
+            try {
+                try {
+                    Web3j web3j = Web3jFactory.build(new HttpService("https://rinkeby.infura.io/1p6X1Vby9WW11tNcTTg0"));
+                    BigInteger _price = BigInteger.ONE;
+                    _price = BigInteger.valueOf(10);
+
+                    BigInteger _steps = BigInteger.ONE;
+                    _steps = BigInteger.valueOf(3);
+                    // We then need to load our Ethereum wallet file
+                    // FIXME: Generate a new wallet file using the web3j command line tools https://docs.web3j.io/command_line.html
+                    Credentials credentials1 = Credentials.create("9c215ede75b688ce2f30372140068c815b78b2eedfe8bd9af04d8d7fddd8ef2e");
+                    CryptoAnchors contract1 = CryptoAnchors.load("0x4296b2dc215cb8e29c8fc81234dd0103f3af6e25", web3j, credentials1, ManagedTransaction.GAS_PRICE, Contract.GAS_LIMIT);
+                    name = contract1.TypeName().send();
+
+                    Log.d("dw", contract1.TypeName().send());
+                } catch (Exception e){e.printStackTrace();}
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            super.onPostExecute(result);
+            scan_bluetooth.setText(name);
+//        Log.d("ETHR", contractAdmin.getContractAddress());
+            Log.d("ETHR", "ok post Exec");
+        }
+    }
+
+
+    class MyTaskCallback extends AsyncTask<Object, Void, Void> {
+
+        @Override
+        protected void onPreExecute() {
+
+            super.onPreExecute();
+
+        }
+
+        @Override
+        protected Void doInBackground(Object... params) {
+            connectGatt((String) params[0], (BluetoothGattCallback) params[1]);
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            super.onPostExecute(result);
+        }
+    }
+
+    class MyTaskCallback2 extends AsyncTask<Object, Void, Void> {
+
+        @Override
+        protected void onPreExecute() {
+
+            super.onPreExecute();
+
+        }
+
+        @Override
+        protected Void doInBackground(Object... params) {
+            connectGatt((String) params[0], (BluetoothGattCallback) params[1]);
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            super.onPostExecute(result);
+        }
+    }
+
+    class MyTaskCallback3 extends AsyncTask<Object, Void, Void> {
+
+        @Override
+        protected void onPreExecute() {
+
+            super.onPreExecute();
+
+        }
+
+        @Override
+        protected Void doInBackground(Object... params) {
+            connectGatt((String) params[0], (BluetoothGattCallback) params[1]);
+
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void result) {
+            super.onPostExecute(result);
+        }
     }
 }
