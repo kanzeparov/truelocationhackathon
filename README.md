@@ -1,1 +1,2 @@
-# truelocationhackathon
+# CryptoAnchors
+## Гарантия оригинальности продукта
